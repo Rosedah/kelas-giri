@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Kelas Giri</title>
+<meta name="description" content="Lab imersif VR/AR + Generative AI untuk Psikologi Belajar PAI: diagnosis dan intervensi belajar yang ramah psikologis bersama mentor AI Ustadzah Rose.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/aframe@1.6.0/dist/aframe-v1.6.0.min.js"></script>
+<style>
+/*
+VOICE: guru BK senior yang lembut: mengamati dulu, menilai belakangan, tidak pernah mempermalukan.
+IDEA: buku catatan guru di ruang kelas madrasah Gresik pagi hari — tiap siswa adalah satu halaman kasus.
+PICTURE: kelas 3D berjendela kayu, papan tulis hijau, kipas angin berputar, enam siswa dengan perilaku khas.
+COLOUR and TYPE: hijau madrasah tua, kayu jati, putih seragam, aksen merah bata Giri; Lexend + Amiri.
+LAYOUT: kelas penuh layar; HUD tipis; panel kasus di kanan (lembar bawah di ponsel); dok siswa di kiri bawah.
+*/
+:root{color-scheme:dark;--deep:#10261f;--deep2:#173429;--jati:#8a5a34;--bata:#c0573a;--paper:#f5efe3;--ink:#f4f1ea;--muted:#a9bcb3;--mint:#7fd3a8;--ok:#62d18e;--bad:#ff7d69;--card:rgba(11,31,25,.95);--line:rgba(230,240,235,.16)}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;background:var(--deep);color:var(--ink);font:16px/1.55 Lexend,system-ui,sans-serif;overflow:hidden}
+body.ar{background:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--mint);outline-offset:2px}
+.ar-bg{position:fixed;inset:0;z-index:-1;width:100%;height:100%;object-fit:cover;display:none;background:radial-gradient(circle at 50% 40%,#3c5a4e,#10261f)}
+body.ar .ar-bg.on{display:block}
+.hud{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;gap:10px;align-items:center;padding:10px 12px;background:linear-gradient(#0a1c16cc,#0a1c1600);pointer-events:none}
+.hud>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;margin-right:auto}
+.brand small{display:block;font-weight:400;color:var(--muted);font-size:13px;line-height:1.1}
+.badges{display:flex;gap:4px;align-items:center;background:#0009;border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+.bd{width:14px;height:14px;border-radius:4px;transform:rotate(45deg);background:#ffffff1f;border:1px solid #ffffff33}
+.bd.on{background:linear-gradient(135deg,#bff3d6,var(--mint));border-color:#d9ffe9;box-shadow:0 0 8px #7fd3a899}
+.pill{display:inline-flex;align-items:center;gap:6px;background:#0009;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px;min-height:36px;white-space:nowrap}
+.pill i{width:8px;height:8px;border-radius:50%;background:#e7b84a;display:inline-block}
+.pill.claude i,.pill.puter i{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.ibtn{min-width:44px;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#000a;display:grid;place-items:center;padding:0 12px}
+.dock{position:fixed;left:12px;bottom:12px;z-index:20;display:flex;flex-wrap:wrap;gap:8px;max-width:min(640px,calc(100vw - 24px))}
+.dock button{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);padding:6px 12px 6px 6px;display:flex;align-items:center;gap:8px;font-size:14px}
+.dock button.done{border-color:#62d18e99}
+.dock .face{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#10261f}
+.dock button.done .face::after{content:'✓';position:absolute;transform:translate(12px,-12px);background:var(--ok);color:#06210f;border-radius:50%;width:16px;height:16px;font-size:11px;display:grid;place-items:center}
+.dock .main{background:var(--mint);color:#0b2a1d;font-weight:700;border-color:transparent;padding:6px 14px}
+.panel{position:fixed;z-index:30;top:64px;right:12px;bottom:12px;width:min(500px,calc(100vw - 24px));background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 60px #0008;display:none;flex-direction:column;overflow:hidden}
+.panel.open{display:flex}
+.phead{display:flex;gap:12px;align-items:flex-start;padding:14px 16px 12px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,#c0573a40,transparent)}
+.phead h2{font-size:20px;line-height:1.15;margin:0 0 2px}
+.phead p{margin:0;color:var(--muted);font-size:14px}
+.avatar{flex:none;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:#24483a}
+.pbody{overflow:auto;padding:12px 16px 18px;flex:1}
+.close{margin-left:auto;flex:none}
+.step{border:1px solid var(--line);border-radius:14px;padding:12px;margin:0 0 12px;background:#ffffff06}
+.step h3{margin:0 0 8px;font-size:15.5px;display:flex;gap:8px;align-items:center}
+.step h3 .n{width:24px;height:24px;border-radius:7px;background:var(--bata);display:grid;place-items:center;font-size:13px;flex:none}
+.step.done h3 .n{background:var(--ok);color:#06210f}
+.obs{background:#ffffff0d;border-left:3px solid var(--mint);border-radius:0 10px 10px 0;padding:8px 10px;margin:0 0 8px;font-size:14.5px}
+.bars{display:grid;gap:6px;margin:6px 0}
+.bar{display:grid;grid-template-columns:8.5em minmax(0,1fr) 3em;gap:8px;align-items:center;font-size:13.5px}
+.bar .tr{height:10px;border-radius:6px;background:#ffffff14;overflow:hidden}
+.bar .tr b{display:block;height:100%;border-radius:6px;background:var(--mint);transition:width .8s ease}
+.bar .tr b.low{background:#e7b84a}.bar .tr b.vlow{background:var(--bad)}
+.bar span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.kv{width:100%;border-collapse:collapse;font-size:13.5px;margin:6px 0}
+.kv td{padding:5px 2px;border-bottom:1px solid var(--line);vertical-align:top}
+.kv td:first-child{color:var(--muted);width:40%}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chips button,.opt{border-radius:999px;border:1px solid var(--line);background:#ffffff0d;padding:6px 11px;font-size:13.5px;min-height:36px}
+.opt.on{background:var(--mint);color:#0b2a1d;border-color:transparent;font-weight:500}
+.opt.harm{border-style:dashed}
+.chat{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto;margin:6px 0}
+.bubble{max-width:88%;padding:8px 11px;border-radius:14px;font-size:14px;white-space:pre-wrap}
+.bubble.me{align-self:flex-end;background:var(--bata);border-bottom-right-radius:4px}
+.bubble.them{align-self:flex-start;background:#ffffff12;border-bottom-left-radius:4px}
+.row{display:flex;gap:8px;align-items:center}
+.row input{flex:1;min-height:44px;border-radius:12px;border:1px solid #ffffff2e;background:#0006;padding:8px 12px;font-size:16px}
+textarea{width:100%;border-radius:10px;border:1px solid #ffffff2e;background:#0006;padding:10px;font-size:16px}
+select{width:100%;min-height:44px;border-radius:10px;border:1px solid #ffffff2e;background:#0b1f19;padding:8px;font-size:16px}
+label.l{display:block;font-size:13.5px;color:#dbe7e1;margin:8px 0 4px}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 2px}
+.btn{min-height:44px;border-radius:12px;padding:8px 14px;border:1px solid var(--line);background:#ffffff10;display:inline-flex;align-items:center;gap:8px;font-size:14.5px}
+.btn.pri{background:var(--mint);color:#0b2a1d;border-color:transparent;font-weight:700}
+.btn.bata{background:var(--bata);border-color:transparent}
+.btn[disabled]{opacity:.55;cursor:progress}
+.fb{border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14.5px}
+.fb.ok{background:#62d18e1c;border:1px solid #62d18e66}.fb.bad{background:#ff7d691a;border:1px solid #ff7d6966}
+.ai{background:#c9a7ff14;border:1px solid #c9a7ff55;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14.5px;white-space:pre-wrap}
+.ai .who{font-weight:700;color:#dcc6ff;margin-bottom:4px;white-space:normal}
+.tag{display:inline-block;font-size:12.5px;padding:2px 8px;border-radius:999px;background:#ffffff14;color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.match{display:grid;gap:8px}
+.mrow{border:1px solid var(--line);border-radius:12px;padding:10px;background:#ffffff08}
+.mrow.ok{border-color:#62d18e88}.mrow.bad{border-color:#ff7d6988}
+.mrow p{margin:0 0 6px;font-size:14px}
+.modal{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:#06130fcc;padding:16px}
+.modal.open{display:grid}
+.mbox{width:min(780px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--deep2);border:1px solid var(--line);border-radius:20px;box-shadow:0 30px 80px #000a}
+.hero{padding:26px 24px 18px;background:radial-gradient(120% 90% at 90% 0%,#c0573a88,transparent 60%),linear-gradient(160deg,#173429,#10261f)}
+.hero .arb{font-family:Amiri,serif;font-size:22px;color:#f1c98a;direction:rtl;text-align:right;margin-bottom:6px}
+.hero h1{font-size:clamp(30px,5vw,46px);line-height:1.05;margin:0 0 8px;text-wrap:balance}
+.hero p{margin:0;max-width:62ch;color:#dfe9e4}
+.mcontent{padding:18px 24px 24px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+.mode{border:1px solid var(--line);border-radius:14px;padding:14px;background:#ffffff08;text-align:left;display:grid;gap:6px;align-content:start}
+.mode:hover{border-color:var(--mint);background:#7fd3a812}
+.mode b{font-size:17px}.mode span{font-size:13.5px;color:var(--muted)}
+.obj{margin:10px 0;padding-left:20px;font-size:14.5px}
+.arbar{position:fixed;z-index:25;left:50%;transform:translateX(-50%);bottom:14px;display:none;width:min(660px,calc(100vw - 24px))}
+body.ar .arbar{display:block}
+body.ar .dock{display:none}
+.arcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-height:44px;border-radius:10px;border:1px solid var(--line);background:#ffffff0d;font-size:14px}
+.seg button.on{background:var(--mint);color:#0b2a1d;font-weight:700}
+.arinfo{font-size:14px;margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.toast{position:fixed;z-index:60;left:50%;top:70px;transform:translateX(-50%);background:#0a1c16f0;border:1px solid var(--mint);border-radius:12px;padding:10px 16px;font-size:14.5px;display:none;max-width:calc(100vw - 24px)}
+.toast.on{display:block;animation:pop .35s ease}
+@keyframes pop{from{transform:translate(-50%,-8px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.toast.on{animation:none}.bar .tr b{transition:none}}
+body.panel-open .a-enter-vr,body.panel-open .a-enter-ar{display:none}
+@media(max-width:700px){
+ .panel{top:auto;left:8px;right:8px;width:auto;height:min(64vh,640px);bottom:8px}
+ .grid3{grid-template-columns:minmax(0,1fr)}
+ .brand small{display:none}
+ .dock button .lbl{display:none}
+ .dock button{padding:6px}
+ .hud .pill .t{display:none}
+}
+</style>
+</head>
+<body>
+<video id="arVideo" class="ar-bg" playsinline muted autoplay></video>
+<img id="arPhoto" class="ar-bg" alt="">
+<div id="arPlain" class="ar-bg"></div>
+
+<header class="hud">
+ <div class="brand">
+  <svg width="38" height="38" viewBox="0 0 38 38" aria-hidden="true"><rect x="3" y="7" width="32" height="22" rx="3" fill="#24483a" stroke="#8a5a34" stroke-width="2"/><path d="M9 22c3-6 7-9 10-9s7 3 10 9" stroke="#7fd3a8" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="19" cy="13" r="2.4" fill="#c0573a"/><rect x="15" y="29" width="8" height="5" fill="#8a5a34"/></svg>
+  <div>Kelas Giri<small>Lab Imersif Psikologi Belajar PAI</small></div>
+ </div>
+ <div class="badges" id="badges" title="Lencana Guru Ngemong" aria-label="Progres kasus"></div>
+ <span class="pill" id="aiPill" title="Status Generative AI"><i></i><span class="t" id="aiTxt">AI: menghubungkan…</span></span>
+ <button class="ibtn" id="sndBtn" aria-label="Suasana kelas" title="Suara suasana kelas">♪</button>
+ <button class="ibtn" id="helpBtn" aria-label="Menu" title="Menu">☰</button>
+</header>
+
+<nav class="dock" id="dock" aria-label="Daftar kasus"></nav>
+
+<div class="arbar">
+ <div class="arcard">
+  <div class="seg" id="arSeg">
+   <button data-o="memori" class="on">Memori</button>
+   <button data-o="bandura">Bandura</button>
+   <button data-o="zimmerman">Regulasi Diri</button>
+  </div>
+  <div class="arinfo" id="arInfo"></div>
+  <div class="arinfo"><span class="note">Ketuk bagian model · seret memutar · gulir/cubit memperbesar</span><button class="btn" id="arPhotoBtn">Foto latar</button><button class="btn bata" id="arExit">Kembali ke kelas</button></div>
+ </div>
+</div>
+<input type="file" id="arFile" accept="image/*" capture="environment" hidden>
+
+<aside class="panel" id="panel" aria-live="polite">
+ <div class="phead"><div class="avatar" id="pAv"></div><div><h2 id="pTitle"></h2><p id="pSub"></p></div><button class="ibtn close" id="pClose" aria-label="Tutup">✕</button></div>
+ <div class="pbody" id="pBody"></div>
+</aside>
+
+<div class="modal open" id="intro" role="dialog" aria-modal="true" aria-labelledby="introT">
+ <div class="mbox">
+  <div class="hero">
+   <div class="arb" lang="ar">يَسِّرُوا وَلَا تُعَسِّرُوا، وَبَشِّرُوا وَلَا تُنَفِّرُوا</div>
+   <h1 id="introT">Kelas Giri: amati, pahami, dampingi</h1>
+   <p>Pagi di sebuah madrasah di Gresik. Pelajaran Fikih tentang wudu dan hafalan QS. al-‘Asr sedang berlangsung. Enam peserta didik punya cara belajar dan hambatan yang berbeda. Tugas Anda sebagai calon guru PAI: mengamati, mengumpulkan data, mewawancarai, mendiagnosis dengan teori psikologi belajar, lalu merancang intervensi yang ramah psikologis bersama mentor AI <b>Ustadzah Rose</b>.</p>
+  </div>
+  <div class="mcontent">
+   <b>Capaian pembelajaran (Psikologi Belajar PAI)</b>
+   <ol class="obj">
+    <li>Menjelaskan perhatian, persepsi, dan memori dalam belajar PAI melalui model 3D.</li>
+    <li>Menganalisis dan mengkritik teori behavioristik, kognitif, konstruktivistik, sosial, dan regulasi diri pada praktik pesantren.</li>
+    <li>Mendiagnosis kesulitan belajar berbasis data dan keragaman kebutuhan peserta didik.</li>
+    <li>Merancang serta mengevaluasi intervensi belajar berbasis teknologi yang etis dan ramah psikologis.</li>
+   </ol>
+   <div class="grid3">
+    <button class="mode" id="goVR"><b>Masuk Kelas (VR)</b><span>Jelajahi kelas 3D. Klik siswa untuk membuka kasus, papan tulis untuk kritik teori, atau Ustadzah Rose untuk bertanya.</span></button>
+    <button class="mode" id="goAR"><b>Lab Teori (AR)</b><span>Munculkan model memori Atkinson–Shiffrin, belajar observasional Bandura, dan siklus regulasi diri Zimmerman di meja Anda.</span></button>
+    <button class="mode" id="goRose"><b>Tanya Ustadzah Rose</b><span>Mentor AI yang membimbing dengan pertanyaan, bukan jawaban instan.</span></button>
+   </div>
+   <p class="note">Profil siswa adalah indikasi pedagogis untuk latihan, bukan diagnosis klinis. Dugaan gangguan belajar pada anak sungguhan dirujuk ke guru BK atau psikolog, dan data peserta didik nyata tidak dimasukkan ke layanan AI.</p>
+  </div>
+ </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<a-scene id="scene" renderer="alpha:true;antialias:true;colorManagement:true" xr-mode-ui="enabled:true;XRMode:xr" cursor="rayOrigin:mouse" raycaster="objects:.clickable;far:40" loading-screen="dotsColor:#7fd3a8;backgroundColor:#10261f">
+ <a-entity id="sky" hide-on-enter-ar geometry="primitive:sphere;radius:60;segmentsWidth:16;segmentsHeight:8" material="shader:flat;side:back;color:#bfe3ea"></a-entity>
+ <a-entity light="type:hemisphere;color:#fff7e8;groundColor:#6b4a30;intensity:0.95"></a-entity>
+ <a-entity light="type:directional;color:#fff1d6;intensity:0.6" position="-6 8 3"></a-entity>
+ <a-entity id="vrWorld"></a-entity>
+ <a-entity id="arWorld" visible="false"></a-entity>
+ <a-entity id="rig" position="4.2 0 4.6" rotation="0 38 0">
+  <a-entity id="cam" camera look-controls="magicWindowTrackingEnabled:false" wasd-controls="acceleration:22" position="0 1.6 0">
+   <a-entity id="gaze" position="0 0 -1" cursor="fuse:true;fuseTimeout:1500" raycaster="objects:.clickable;enabled:false;far:30" geometry="primitive:ring;radiusInner:0.012;radiusOuter:0.02" material="color:#7fd3a8;shader:flat" visible="false"></a-entity>
+  </a-entity>
+  <a-entity laser-controls="hand:right" raycaster="objects:.clickable;far:30"></a-entity>
+ </a-entity>
+</a-scene>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const md=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+/* ================= DATA KASUS ================= */
+const ASPEK=[
+ {k:'perhatian',n:'Perhatian (atensi)'},{k:'persepsi',n:'Persepsi visual/auditori'},{k:'memori',n:'Memori kerja/jangka panjang'},
+ {k:'emosi',n:'Emosi/kecemasan belajar'},{k:'motivasi',n:'Motivasi belajar'},{k:'regulasi',n:'Regulasi diri'},
+ {k:'bahasa',n:'Bahasa & latar sosial-budaya'},{k:'pengayaan',n:'Kebutuhan pengayaan (cepat belajar)'}];
+const TEORI=['Behavioristik','Kognitif (pemrosesan informasi)','Konstruktivistik (ZPD, scaffolding)','Belajar sosial Bandura','Regulasi diri Zimmerman'];
+const STRAT=[
+ {k:'chunk',n:'Pecah materi 5–7 menit + jeda gerak'},
+ {k:'duduk',n:'Pindah duduk dekat guru, jauh dari jendela'},
+ {k:'sorogan',n:'Setoran sorogan berdua, tanpa penonton'},
+ {k:'multi',n:'Kartu hijaiyah multisensori + warna pembeda huruf mirip'},
+ {k:'kaya',n:'Tugas pengayaan & tutor sebaya (badal ustaz)'},
+ {k:'dolanan',n:'Murajaah lewat dolanan Cublak-cublak Suweng'},
+ {k:'kontrak',n:'Kontrak belajar & jurnal target–pantau–refleksi'},
+ {k:'wali',n:'Kemitraan wali murid: jam tidur & batas gawai'},
+ {k:'jembatan',n:'Jembatan bahasa ibu: glosarium Madura–Indonesia + visual'},
+ {k:'puji',n:'Penguatan positif segera & spesifik'},
+ {k:'hukum',n:'Hukuman berdiri di depan kelas agar jera',harm:1},
+ {k:'sita',n:'Sita gawai & tegur keras di depan teman',harm:1},
+ {k:'label',n:'Sebut “anak lambat/malas” agar terpacu',harm:1},
+ {k:'tambah',n:'Tambah porsi hafalan sebagai latihan',harm:1}];
+const ST=[
+ {id:'rafi',n:'Rafi',fem:0,col:'#6aa9d8',pos:[-2.6,-1.0],
+  obs:'Saat Ustaz menjelaskan urutan rukun wudu selama 15 menit, Rafi menoleh ke jendela setiap ada suara motor, memainkan pulpen, dan dua kali bertanya “sampai mana, Ustaz?”. Saat praktik wudu di tempat wudu, ia justru aktif dan cepat.',
+  data:{Tes_tulis:52,Hafalan:70,Praktik_ibadah:86,Proyek:74},hadir:'96%',catatan:'Sering tertinggal instruksi lisan yang panjang; semangat saat kegiatan bergerak.',log:'Video pembelajaran rata-rata ditonton 28% durasi lalu ditinggal.',angket:'Minat PAI 4/5 · Kecemasan 2/5 · Kesulitan konsentrasi 5/5',
+  key:['perhatian'],teori:'Kognitif: kapasitas memori kerja dan atensi selektif terbatas; penjelasan panjang tanpa jeda membuat informasi tidak sempat diolah.',
+  fx:{chunk:3,duduk:2,puji:1,dolanan:1,kontrak:1,multi:1,hukum:-3,sita:-1,label:-3,tambah:-1},
+  persona:'Rafi, 13 tahun, ceria, energik, suka sepak bola. Mudah teralih oleh suara dan gerakan. Kalau penjelasan panjang ia bosan dan lupa awalnya. Suka praktik langsung. Tidak malas; ia ingin bisa. Tidur cukup. Ibunya pedagang di Pasar Gresik.',
+  off:[[/fokus|konsen|bosan|perhati|jelas/i,'Hehe… kalau Ustaz jelasin lama, aku awalnya ngerti, Bu, tapi terus pikiranku ke mana-mana. Ada motor lewat, aku nengok.'],[/suka|senang|enak/i,'Aku paling seneng pas praktik wudu langsung, Bu! Kalau gerak gitu aku cepet inget.'],[/rumah|tidur|ibu|ayah/i,'Tidurku jam sembilan kok, Bu. Ibu jualan di pasar, jadi pagi aku dibangunin.'],[/hafal/i,'Hafalan aku lumayan, asal dibacain berulang-ulang sambil jalan-jalan.']]},
+ {id:'nisa',n:'Nisa',fem:1,col:'#d98fb4',pos:[0,-1.0],
+  obs:'Ketika namanya dipanggil untuk setoran QS. al-‘Asr di depan kelas, suara Nisa bergetar, ia menunduk, dan berhenti di ayat kedua. Padahal sebelum kelas ia terdengar lancar mengulang hafalan bersama teman sebangkunya.',
+  data:{Tes_tulis:88,Hafalan:58,Praktik_ibadah:80,Proyek:90},hadir:'98%',catatan:'Rajin dan teliti; nilai hafalan anjlok setiap setoran di depan kelas.',log:'Mengulang audio murattal di aplikasi 40 menit/hari.',angket:'Minat PAI 5/5 · Kecemasan saat tampil 5/5 · Kepercayaan diri 2/5',
+  key:['emosi'],teori:'Behavioristik & kognitif: kecemasan tampil terkondisi oleh pengalaman ditertawakan; kecemasan juga menyita kapasitas memori kerja sehingga hafalan sulit dipanggil.',
+  fx:{sorogan:3,dolanan:2,puji:2,kontrak:1,chunk:0,hukum:-3,label:-3,tambah:-2,sita:-1},
+  persona:'Nisa, 13 tahun, pendiam, rajin, perfeksionis. Hafal QS al-Asr di rumah dan saat berdua, tetapi panik bila disuruh setoran di depan kelas sejak pernah ditertawakan teman saat salah baca di kelas 6. Takut mengecewakan orang tua. Tidak punya masalah membaca huruf.',
+  off:[[/takut|cemas|grogi|depan|setoran/i,'(pelan) Aku hafal kok, Bu… tapi kalau di depan, semua lihat aku, terus aku lupa. Dulu pernah salah, terus diketawain.'],[/rumah|ibu|ayah|orang tua/i,'Bapak Ibu pengin aku juara. Aku takut ngecewain.'],[/hafal|bisa/i,'Kalau sama Rina berdua aku lancar, Bu. Cuma kalau rame aja.'],[/suka|senang/i,'Aku suka dengerin murattal pakai HP Ibu.']]},
+ {id:'bayu',n:'Bayu',fem:0,col:'#e0a54f',pos:[2.6,-1.0],
+  obs:'Saat membaca QS. al-‘Asr dari mushaf, Bayu mendekatkan buku ke wajah, membaca sangat pelan, dan beberapa kali tertukar antara ب ت ث serta ح خ ج. Ketika ayat dibacakan guru, ia dapat menirukannya dengan benar.',
+  data:{Tes_tulis:64,Hafalan:72,Praktik_ibadah:84,Proyek:70},hadir:'94%',catatan:'Bacaan tersendat pada huruf yang bentuknya mirip; menyimak lisan baik.',log:'Lebih sering memakai fitur audio daripada teks.',angket:'Minat PAI 4/5 · Kecemasan 3/5 · Merasa sulit membaca huruf Arab 5/5',
+  key:['persepsi'],teori:'Kognitif (persepsi): diskriminasi visual huruf bertitik/berbentuk mirip lemah, sementara jalur auditori kuat; perlu pengenalan pola multisensori.',
+  fx:{multi:3,puji:1,sorogan:1,dolanan:1,chunk:1,hukum:-3,label:-3,tambah:-2},
+  persona:'Bayu, 12 tahun, ramah, suka menggambar. Sering tertukar membaca huruf hijaiyah yang mirip (ba-ta-tsa, jim-ha-kho), kadang bingung arah. Kalau mendengar bacaan ia cepat hafal. Malu karena teman bilang bacaannya lambat. Belum pernah periksa mata.',
+  off:[[/huruf|baca|mushaf|sulit/i,'Hurufnya mirip-mirip, Bu. Titiknya kadang kayak pindah. Aku bingung ini ba apa ta.'],[/dengar|hafal/i,'Kalau dibacain aku cepet hafal, Bu. Aku niruin suaranya.'],[/mata|lihat/i,'Belum pernah periksa mata, Bu. Kadang aku deketin bukunya biar jelas.'],[/suka|senang/i,'Aku suka gambar, Bu! Kaligrafi juga suka, tapi nyontoh.']]},
+ {id:'laila',n:'Laila',fem:1,col:'#9ad07b',pos:[-2.6,1.2],
+  obs:'Laila menyelesaikan lembar kerja tata cara wudu dalam lima menit dengan benar semua. Setelah itu ia mencoret-coret buku, mengajak ngobrol teman, dan menyela penjelasan guru dengan pertanyaan tentang hukum wudu memakai kuteks.',
+  data:{Tes_tulis:97,Hafalan:95,Praktik_ibadah:92,Proyek:88},hadir:'99%',catatan:'Cepat paham; sering dianggap “mengganggu” setelah tugas selesai.',log:'Membuka materi tambahan di luar jadwal; bertanya di forum.',angket:'Minat PAI 5/5 · Merasa bosan di kelas 5/5 · Kecemasan 1/5',
+  key:['pengayaan'],teori:'Konstruktivistik: tugas berada di bawah zona perkembangan proksimalnya; perlu tantangan bertingkat dan peran sosial yang bermakna.',
+  fx:{kaya:3,dolanan:1,kontrak:1,puji:0,hukum:-2,label:-2,sita:-1,tambah:0},
+  persona:'Laila, 13 tahun, cerdas, banyak tanya, sudah khatam Juz Amma. Cepat bosan bila materi terlalu mudah, lalu mengobrol. Suka diskusi fikih kontemporer (kuteks, wudu di pesawat). Ingin jadi dokter. Merasa dianggap nakal padahal hanya bosan.',
+  off:[[/bosan|cepat|selesai|mudah/i,'Jujur, Bu, materinya aku udah bisa dari SD. Jadi habis ngerjain ya aku bingung mau ngapain.'],[/tanya|kuteks|fikih/i,'Aku penasaran banget hukum wudu pakai kuteks atau di pesawat. Seru!'],[/teman|ngobrol|ganggu/i,'Aku nggak maksud ganggu… cuma nunggu yang lain lama.'],[/cita|mau jadi/i,'Aku pengin jadi dokter, Bu.']]},
+ {id:'dimas',n:'Dimas',fem:0,col:'#a98bd6',pos:[0,1.2],
+  obs:'Dimas menguap berkali-kali dan kepalanya terkulai di atas meja. Tugas rumah menulis niat wudu tidak dikumpulkan untuk ketiga kalinya. Saat ditanya, ia menjawab “nanti, Ustaz”. Di jam istirahat ia bersemangat membahas game daring.',
+  data:{Tes_tulis:60,Hafalan:48,Praktik_ibadah:66,Proyek:40},hadir:'85%',catatan:'Tugas sering tidak dikumpulkan; tampak lelah di jam pertama.',log:'Login aplikasi belajar 2 kali dalam sebulan; aktif pukul 23.00–01.00.',angket:'Minat PAI 2/5 · Tidak tahu cara mengatur waktu 5/5 · Kecemasan 2/5',
+  key:['regulasi','motivasi'],teori:'Regulasi diri (Zimmerman): belum mampu menetapkan target, memantau, dan merefleksi; motivasi rendah diperparah kurang tidur. Penguatan positif juga membantu (behavioristik).',
+  fx:{kontrak:3,wali:2,puji:2,dolanan:1,kaya:1,sita:-3,label:-3,hukum:-2,tambah:-1},
+  persona:'Dimas, 14 tahun, santai, jago game daring, sering main sampai jam 1 malam karena ayah kerja shift malam di pabrik dan ibu merantau. Tidak punya jadwal, tidak tahu cara membagi waktu. Sebenarnya ingin naik kelas dan senang bila dipuji. Tidak suka dimarahi di depan teman.',
+  off:[[/tidur|malam|game|hp|gawai/i,'Hehe… main sampai jam satu, Bu. Di rumah sepi, Ayah kerja malam di pabrik.'],[/tugas|kumpul|pr/i,'Lupa, Bu. Nggak ada yang ngingetin. Aku juga nggak tahu harus ngerjain kapan.'],[/marah|hukum|tegur/i,'Kalau dimarahin di depan anak-anak aku malah males, Bu.'],[/suka|senang|pengin/i,'Aku pengin naik kelas sih, Bu. Kalau dipuji aku semangat.']]},
+ {id:'ayu',n:'Ayu',fem:1,col:'#e07a62',pos:[2.6,1.2],
+  obs:'Ayu, pindahan dari Sampang, Madura, tampak bingung saat guru memakai istilah “membasuh”, “menyapu”, dan “tertib”. Ia sering menoleh ke teman sebangkunya, lalu mengerjakan berdasarkan contoh teman. Saat guru memperagakan gerakan wudu, ia langsung mengikuti dengan benar.',
+  data:{Tes_tulis:55,Hafalan:80,Praktik_ibadah:88,Proyek:62},hadir:'97%',catatan:'Nilai tes tulis rendah, tetapi praktik baik; jarang bertanya.',log:'Banyak waktu pada soal cerita; sering membuka kamus daring.',angket:'Minat PAI 5/5 · Kesulitan memahami bahasa guru 4/5 · Kecemasan 3/5',
+  key:['bahasa'],teori:'Belajar sosial & konstruktivistik: hambatan ada pada bahasa pengantar, bukan kemampuan; perlu jembatan bahasa ibu, pemodelan visual, dan dukungan teman sebaya.',
+  fx:{jembatan:3,puji:1,sorogan:1,multi:1,dolanan:1,kaya:0,hukum:-3,label:-3,tambah:-1},
+  persona:'Ayu, 13 tahun, baru pindah dari Sampang, Madura, tiga bulan lalu. Bahasa sehari-hari Madura; bahasa Indonesia baku seperti "membasuh", "tertib" sulit dipahami. Pintar mengaji, hafalan baik. Malu bertanya karena logatnya ditertawakan. Selipkan sedikit kata Madura (engghi, ta’ ngarteh).',
+  off:[[/bahasa|ngerti|paham|istilah|bingung/i,'Engghi, Bu… kata “membasuh” itu saya ta’ ngarteh. Kalau Ustaz peragakan, saya bisa.'],[/tanya|malu/i,'Saya malu tanya, Bu. Logat saya diketawain.'],[/madura|asal|pindah/i,'Saya dari Sampang, Bu. Baru tiga bulan di sini.'],[/ngaji|hafal/i,'Kalau ngaji saya bisa, Bu. Dari kecil di langgar.']]}
+];
+const PAPAN=[
+ {d:'Setoran hafalan Juz Amma; santri yang lancar dipuji dan diberi bintang di kartu prestasi.',a:'Behavioristik'},
+ {d:'Sorogan: santri membaca kitab satu per satu di hadapan kiai, dikoreksi dan dibimbing sesuai kemampuannya.',a:'Konstruktivistik (ZPD, scaffolding)'},
+ {d:'Bandongan: kiai membaca dan menerangkan kitab secara runtut kepada banyak santri yang menyimak dan memberi makna.',a:'Kognitif (pemrosesan informasi)'},
+ {d:'Santri meniru adab kiai: cara bertutur, menghormati tamu, dan disiplin salat berjamaah.',a:'Belajar sosial Bandura'},
+ {d:'Muhasabah malam: santri mencatat target ibadah, memantau pelaksanaannya, dan merenungkan perbaikan esok hari.',a:'Regulasi diri Zimmerman'},
+ {d:'Takzir: santri yang terlambat salat berjamaah diberi sanksi menyapu halaman.',a:'Behavioristik'}];
+
+/* ================= STATE ================= */
+const S={done:{},cur:null,mode:'vr',ai:{mode:'offline',sample:null,tts:null},rose:[],talk:{},diag:{},snd:false};
+try{Object.assign(S.done,JSON.parse(localStorage.getItem('giri-done')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('giri-done',JSON.stringify(S.done))}catch(e){}};
+const IDS=[...ST.map(s=>s.id),'papan'];
+
+/* ================= GENAI ================= */
+const SYS=`Kamu adalah "Ustadzah Rose", guru BK senior di sebuah madrasah di Gresik sekaligus mentor mata kuliah Psikologi Belajar PAI. Gaya: lembut, hangat, sabar, menyapa mahasiswa "Mbak/Mas" atau "Nak", sesekali memakai ungkapan Jawa Timur ringan (ngemong, tepa slira). Pedagogi: Sokratik — ajukan pertanyaan pemantik, minta bukti perilaku/data, jangan langsung memberi diagnosis atau jawaban akhir kecuali mahasiswa sudah mencoba. Acuan teori: behavioristik (Skinner: penguatan, hukuman), kognitif (Atkinson-Shiffrin, memori kerja, atensi, persepsi), konstruktivistik (Piaget, Vygotsky ZPD, scaffolding), belajar sosial Bandura (atensi, retensi, reproduksi, motivasi; efikasi diri), regulasi diri Zimmerman (forethought, performance, self-reflection), UDL & diferensiasi. Etika: tekankan bahwa profil siswa adalah indikasi pedagogis, bukan diagnosis klinis; rujuk ke guru BK/psikolog bila perlu; tolak strategi yang mempermalukan atau menghukum secara merendahkan; jaga privasi data anak. Kaitkan dengan tradisi pesantren (sorogan, bandongan, setoran, keteladanan kiai, muhasabah) dan permainan tradisional (Cublak-cublak Suweng) bila relevan. Jangan mengarang kutipan atau referensi. Jawab bahasa Indonesia, ringkas (maks. 120 kata) kecuali diminta panjang.`;
+async function aiAsk(prompt,{onText,sys=SYS,history=null}={}){
+ const msgs=history?[...history]:[{role:'user',content:prompt}];
+ msgs[0]={role:'user',content:sys+'\n\n---\n'+msgs[0].content};
+ if(S.ai.mode==='claude'){const r=await S.ai.sample(msgs,{cache:false,modelTier:'quick',onText:onText?(({text})=>onText(text)):undefined});return r.text}
+ if(S.ai.mode==='puter'){const r=await window.puter.ai.chat(msgs);const t=typeof r==='string'?r:(r?.message?.content?.[0]?.text??r?.message?.content??r?.text??String(r));onText&&onText(t);return t}
+ throw new Error('offline');
+}
+function setAI(mode,label){S.ai.mode=mode;$('aiPill').className='pill '+mode;$('aiTxt').textContent=label}
+async function initAI(){
+ if(window.claude&&typeof window.claude.use==='function'){
+  try{const s=await window.claude.use('sample');if(s){S.ai.sample=s;setAI('claude','AI: Claude aktif')}else setAI('offline','AI: mode luring')}catch(e){setAI('offline','AI: mode luring')}
+  try{S.ai.tts=await window.claude.use('tts')}catch(e){}
+  return;
+ }
+ const sc=document.createElement('script');sc.src='https://js.puter.com/v2/';
+ sc.onload=()=>{if(window.puter&&window.puter.ai)setAI('puter','AI: Puter GenAI aktif');else setAI('offline','AI: mode luring')};
+ sc.onerror=()=>setAI('offline','AI: mode luring');document.head.appendChild(sc);
+ setTimeout(()=>{if($('aiTxt').textContent.includes('menghubungkan'))setAI('offline','AI: mode luring')},9000);
+}
+function speak(text,voice='rounded'){const plain=String(text).replace(/<[^>]+>/g,'').replace(/\*\*/g,'');if(S.ai.tts){S.ai.tts.speak(plain.slice(0,1900),{voice}).catch(()=>webSpeak(plain));return}webSpeak(plain)}
+function webSpeak(t){try{const u=new SpeechSynthesisUtterance(t);u.lang='id-ID';const v=speechSynthesis.getVoices().find(v=>/^id/i.test(v.lang));if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast('Narasi suara tidak tersedia di peramban ini.')}}
+
+/* ---- audio suasana: kicau burung pagi + nada gamelan lembut ---- */
+let AC=null,tmr=null;
+function tone(f,t0,d=1.6,v=.04,type='sine'){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(v,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+d);o.connect(g);g.connect(AC.destination);o.start(t0);o.stop(t0+d)}
+function chirp(t0){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';const f=2400+Math.random()*1400;o.frequency.setValueAtTime(f,t0);o.frequency.exponentialRampToValueAtTime(f*1.35,t0+.08);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.018,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+.12);o.connect(g);g.connect(AC.destination);o.start(t0);o.stop(t0+.13)}
+const SL=[1,1.1487,1.3195,1.5157,1.7411];
+function loop(){if(!S.snd)return;const t=AC.currentTime;if(Math.random()>.4){for(let i=0;i<rnd3();i++)chirp(t+i*.16)}if(Math.random()>.6)tone(196*pick(SL),t+.3,2.4,.03);tmr=setTimeout(loop,1200+Math.random()*1800)}
+function rnd3(){return 2+Math.floor(Math.random()*3)}
+function chime(ok){if(!AC)return;const t=AC.currentTime;(ok?[1,1.3195,1.7411,2]:[1.5157,1.1487]).forEach((r,i)=>tone(330*r,t+i*.12,1.1,.06))}
+$('sndBtn').onclick=()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){return}S.snd=!S.snd;$('sndBtn').style.background=S.snd?'#7fd3a840':'';clearTimeout(tmr);if(S.snd)loop()};
+
+/* ================= UI ================= */
+function toast(m,ms=2800){const t=$('toast');t.innerHTML=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),ms)}
+function face(col,fem){return `<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="15" r="8" fill="#e2b48e"/>${fem?`<path d="M10 17a10 10 0 0 1 20 0v7H10Z" fill="${col}"/>`:`<rect x="12" y="4" width="16" height="7" rx="1.5" fill="#151515"/>`}<path d="M6 40a14 14 0 0 1 28 0Z" fill="#f4f1ea"/><path d="M17 27h6v13h-6Z" fill="${col}"/></svg>`}
+const ROSE_AV=`<svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><path d="M9 18a11 11 0 0 1 22 0v10H9Z" fill="#d97a9a"/><circle cx="20" cy="16" r="7" fill="#e2b48e"/><path d="M5 40a15 15 0 0 1 30 0Z" fill="#d97a9a"/><circle cx="30" cy="9" r="3" fill="#f6c1d2"/></svg>`;
+function renderBadges(){$('badges').innerHTML=IDS.map(i=>`<span class="bd ${S.done[i]?'on':''}"></span>`).join('')}
+function renderDock(){$('dock').innerHTML=ST.map(s=>`<button data-s="${s.id}" class="${S.done[s.id]?'done':''}" aria-label="Kasus ${s.n}"><span class="face" style="background:${s.col}">${s.n[0]}</span><span class="lbl">${s.n}</span></button>`).join('')+`<button data-x="papan" class="${S.done.papan?'done':''}"><span class="face" style="background:#2f5d4a;color:#fff">P</span><span class="lbl">Papan Teori</span></button><button class="main" data-x="rose">Ustadzah Rose</button><button data-x="ar" style="padding:6px 14px">Lab AR</button>`}
+$('dock').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.s)openStudent(b.dataset.s);else if(b.dataset.x==='papan')openPapan();else if(b.dataset.x==='rose')openRose();else if(b.dataset.x==='ar')enterAR()});
+function openPanel(t,s,av){$('pTitle').textContent=t;$('pSub').textContent=s;$('pAv').innerHTML=av;$('panel').classList.add('open');document.body.classList.add('panel-open')}
+function closePanel(){$('panel').classList.remove('open');document.body.classList.remove('panel-open');S.cur=null}
+$('pClose').onclick=closePanel;
+function complete(id){if(!S.done[id]){S.done[id]=true;save();renderBadges();renderDock();markStudent(id);chime(true);const n=Object.keys(S.done).length;toast(n===7?'Masya Allah, ketujuh lencana <b>Guru Ngemong</b> terkumpul!':`Lencana ke-${n} dari 7 diperoleh.`)}}
+function aiBox(el,title){el.innerHTML=`<div class="ai"><div class="who">${title} <span class="tag">${S.ai.mode==='offline'?'luring':'GenAI'}</span></div><span class="t">Ustadzah Rose sedang membaca…</span></div>`;return el.querySelector('.t')}
+function barsHTML(o){return `<div class="bars">${Object.entries(o).map(([k,v])=>`<div class="bar"><span>${k.replace('_',' ')}</span><span class="tr"><b class="${v<60?'vlow':v<75?'low':''}" style="width:${v}%"></b></span><span>${v}</span></div>`).join('')}</div>`}
+
+/* ================= KASUS SISWA ================= */
+function openStudent(id){
+ const s=ST.find(x=>x.id===id);S.cur=id;teleport(id);
+ openPanel(`Kasus ${s.n}`,'Kelas VIII · Fikih: wudu & hafalan QS. al-‘Asr',face(s.col,s.fem));
+ const D=S.diag[id]||{};
+ $('pBody').innerHTML=`
+ <div class="step"><h3><span class="n">1</span>Observasi & data</h3><p class="obs">${esc(s.obs)}</p>
+  ${barsHTML(s.data)}
+  <table class="kv"><tr><td>Kehadiran</td><td>${s.hadir}</td></tr><tr><td>Catatan guru</td><td>${esc(s.catatan)}</td></tr><tr><td>Log belajar digital</td><td>${esc(s.log)}</td></tr><tr><td>Angket</td><td>${esc(s.angket)}</td></tr></table>
+  <div class="acts"><button class="btn" id="bObs">🔊 Dengar observasi</button></div></div>
+ <div class="step"><h3><span class="n">2</span>Wawancara diagnostik</h3><p class="note">Ajukan pertanyaan terbuka dan empatik. ${s.n} diperankan GenAI sesuai profilnya.</p>
+  <div class="chat" id="talk"></div>
+  <div class="chips">${['Apa yang kamu rasakan saat pelajaran?','Bagian mana yang paling sulit?','Bagaimana kebiasaan belajarmu di rumah?','Kegiatan apa yang kamu sukai?'].map(q=>`<button>${q}</button>`).join('')}</div>
+  <div class="row"><input id="talkIn" placeholder="Tanya ${s.n}…" aria-label="Pertanyaan untuk ${s.n}"><button class="btn pri" id="talkSend">Tanya</button></div></div>
+ <div class="step ${D.ok?'done':''}" id="stepDiag"><h3><span class="n">3</span>Diagnosis</h3>
+  <label class="l">Aspek hambatan utama</label><div class="chips" id="aspek">${ASPEK.map(a=>`<button class="opt ${D.a===a.k?'on':''}" data-k="${a.k}">${a.n}</button>`).join('')}</div>
+  <label class="l">Lensa teori yang paling menjelaskan</label><select id="teori">${TEORI.map(t=>`<option>${t}</option>`).join('')}</select>
+  <label class="l">Bukti dari observasi, data, dan wawancara</label><textarea id="bukti" rows="3" placeholder="Contoh: nilai praktik tinggi tetapi tes tulis rendah; saat wawancara mengaku…">${esc(D.b||'')}</textarea>
+  <div class="acts"><button class="btn pri" id="bDiag">Periksa diagnosis</button></div><div id="diagOut"></div></div>
+ <div class="step" id="stepInt"><h3><span class="n">4</span>Intervensi & simulasi</h3><p class="note">Pilih tepat dua strategi. Garis putus-putus menandai praktik yang perlu dikritisi.</p>
+  <div class="chips" id="strat">${STRAT.map(x=>`<button class="opt ${x.harm?'harm':''}" data-k="${x.k}">${x.n}</button>`).join('')}</div>
+  <label class="l">Alasan pedagogis & pertimbangan etis</label><textarea id="alasan" rows="3"></textarea>
+  <div class="acts"><button class="btn pri" id="bSim">Jalankan simulasi</button></div><div id="simOut"></div></div>`;
+ $('bObs').onclick=()=>speak(s.obs);
+ renderTalk(id);
+ $('pBody').querySelectorAll('.chips:not(#aspek):not(#strat) button').forEach(b=>b.onclick=()=>askStudent(id,b.textContent));
+ $('talkSend').onclick=()=>askStudent(id);$('talkIn').onkeydown=e=>{if(e.key==='Enter')askStudent(id)};
+ $('aspek').onclick=e=>{const b=e.target.closest('.opt');if(!b)return;[...$('aspek').children].forEach(x=>x.classList.toggle('on',x===b))};
+ $('strat').onclick=e=>{const b=e.target.closest('.opt');if(!b)return;if(!b.classList.contains('on')&&$('strat').querySelectorAll('.on').length>=2){toast('Pilih tepat dua strategi.');return}b.classList.toggle('on')};
+ $('bDiag').onclick=()=>checkDiag(s);$('bSim').onclick=()=>simulate(s);
+}
+function renderTalk(id){const s=ST.find(x=>x.id===id),t=S.talk[id]||[];$('talk').innerHTML=t.length?t.map(m=>`<div class="bubble ${m.role==='user'?'me':'them'}">${md(m.content)}</div>`).join(''):`<div class="bubble them">${s.fem?'(tersenyum malu)':'(menoleh)'} Nggih, Bu/Pak?</div>`;$('talk').scrollTop=1e6}
+async function askStudent(id,q){
+ const s=ST.find(x=>x.id===id);q=(q||$('talkIn').value).trim();if(!q)return;$('talkIn').value='';
+ const t=S.talk[id]=S.talk[id]||[];t.push({role:'user',content:q});t.push({role:'assistant',content:'…'});renderTalk(id);
+ const bub=[...$('talk').querySelectorAll('.bubble.them')].pop();
+ const sys=`Perankan seorang peserta didik MTs di Gresik. KARTU KARAKTER (rahasia, jangan dibacakan utuh, jangan sebut istilah psikologi/diagnosis): ${s.persona} Jawab sebagai anak usia 12–14 tahun: 1–3 kalimat, polos, bahasa Indonesia santai dengan sedikit logat Jawa Timur, panggil penanya "Bu" atau "Pak". Ungkap informasi sedikit demi sedikit hanya bila ditanya dengan empatik; bila pertanyaan menghakimi, jadilah tertutup.`;
+ let hist=t.slice(0,-1).slice(-10);while(hist.length&&hist[0].role!=='user')hist.shift();
+ try{const r=await aiAsk(null,{sys,history:hist,onText:x=>{bub.innerHTML=md(x);$('talk').scrollTop=1e6}});t[t.length-1].content=r}
+ catch(e){const used=t.filter(m=>m.role==='assistant').map(m=>m.content);const f=s.off.find(f=>f[0].test(q)&&!used.includes(f[1]))||s.off.find(f=>!used.includes(f[1]));t[t.length-1].content=f?f[1]:'(diam sebentar) Udah itu aja sih, Bu.'}
+ renderTalk(id);
+}
+async function checkDiag(s){
+ const a=$('aspek').querySelector('.on')?.dataset.k,te=$('teori').value,b=$('bukti').value.trim();
+ if(!a){toast('Pilih aspek hambatan utama dulu.');return}
+ const ok=s.key.includes(a);S.diag[s.id]={a,b,ok};
+ const out=$('diagOut');
+ out.innerHTML=ok?`<div class="fb ok"><b>Diagnosis tepat.</b> ${esc(s.teori)}</div><div id="dAI"></div>`:`<div class="fb bad"><b>Belum tepat.</b> Bandingkan lagi pola data: kapan ${s.n} berhasil, kapan gagal? Apa yang dikatakannya saat wawancara?</div><div id="dAI"></div>`;
+ if(ok)$('stepDiag').classList.add('done');chime(ok);
+ const box=$('dAI');if(b.length<15){box.innerHTML='<p class="note">Tulis bukti agar Ustadzah Rose dapat memberi umpan balik.</p>';return}
+ const t=aiBox(box,'Umpan balik Ustadzah Rose');
+ try{const r=await aiAsk(`Mahasiswa mendiagnosis peserta didik "${s.n}". Data kasus: ${s.obs} Nilai: ${JSON.stringify(s.data)}; ${s.catatan}; ${s.log}; ${s.angket}. Kunci (dari dosen): aspek ${s.key.join('/')}; ${s.teori}. Jawaban mahasiswa: aspek=${a} (${ok?'tepat':'kurang tepat'}), lensa teori=${te}, bukti="${b.slice(0,1200)}". Beri umpan balik: kekuatan bukti, bukti yang terlewat, apakah lensa teorinya pas. ${ok?'':'Jangan sebut kunci secara langsung; pancing dengan satu pertanyaan.'} Akhiri dengan satu pertanyaan reflektif.`,{onText:x=>t.innerHTML=md(x)});t.innerHTML=md(r)}
+ catch(e){t.innerHTML=md(ok?'Mode luring: diagnosis Anda sejalan dengan data. Pastikan bukti mencakup **observasi, data nilai, dan pengakuan siswa** (triangulasi).':'Mode luring: perhatikan kontras antar data, misalnya praktik vs tes tulis, berdua vs di depan kelas, mendengar vs membaca.')}
+}
+async function simulate(s){
+ const sel=[...$('strat').querySelectorAll('.on')].map(b=>b.dataset.k);
+ if(sel.length!==2){toast('Pilih tepat dua strategi.');return}
+ const pos=sel.reduce((t,k)=>t+Math.max(0,s.fx[k]||0),0),neg=sel.reduce((t,k)=>t+Math.min(0,s.fx[k]||0),0);
+ const avg=Math.round(Object.values(s.data).reduce((a,b)=>a+b,0)/4);
+ const cap0=Math.min(avg,70),aman0=s.id==='nisa'?35:55;
+ const cap=Math.max(10,Math.min(96,cap0+pos*5+neg*4)),aman=Math.max(5,Math.min(96,aman0+pos*6+neg*12));
+ const ok=pos>=4&&neg===0&&S.diag[s.id]?.ok;
+ $('simOut').innerHTML=`<div class="bars"><div class="bar"><span>Capaian belajar</span><span class="tr"><b id="b1" style="width:${cap0}%"></b></span><span>${cap0}→${cap}</span></div><div class="bar"><span>Rasa aman</span><span class="tr"><b id="b2" style="width:${aman0}%"></b></span><span>${aman0}→${aman}</span></div></div>
+ <div class="fb ${ok?'ok':'bad'}">${ok?`<b>Intervensi efektif dan ramah psikologis.</b> ${s.n} menunjukkan kemajuan tanpa kehilangan rasa aman.`:neg<0?'<b>Ada strategi yang melukai rasa aman.</b> Hukuman, pelabelan, atau mempermalukan di depan teman biasanya menurunkan motivasi dan efikasi diri. Coba ganti.':!S.diag[s.id]?.ok?'<b>Selesaikan diagnosis dengan tepat dulu</b>, karena intervensi yang efektif berangkat dari diagnosis yang benar.':'<b>Dampaknya belum optimal.</b> Strategi belum menyasar akar hambatan. Coba kombinasi lain.'}</div><div id="sAI"></div>`;
+ requestAnimationFrame(()=>setTimeout(()=>{$('b1').style.width=cap+'%';$('b1').className=cap<60?'vlow':cap<75?'low':'';$('b2').style.width=aman+'%';$('b2').className=aman<45?'vlow':aman<65?'low':''},60));
+ chime(ok);if(ok)complete(s.id);
+ const names=sel.map(k=>STRAT.find(x=>x.k===k).n),al=$('alasan').value.trim();
+ const t=aiBox($('sAI'),`Reaksi ${s.n} & catatan Ustadzah Rose`);
+ try{const r=await aiAsk(`Simulasi intervensi untuk peserta didik "${s.n}" (profil: ${s.persona}). Strategi dipilih mahasiswa: ${names.join(' + ')}. Hasil yang SUDAH ditentukan mesin simulasi (wajib konsisten): capaian ${cap0}→${cap}, rasa aman ${aman0}→${aman}, ${ok?'berhasil':'belum berhasil'}. Alasan mahasiswa: "${al.slice(0,800)||'(tidak diisi)'}". Tulis (1) dua kalimat narasi reaksi ${s.n} di kelas minggu berikutnya, sesuai hasil; (2) catatan Ustadzah Rose: kaitkan dengan teori, nilai alasan & etika, satu saran evaluasi efektivitas (indikator yang bisa diukur).`,{onText:x=>t.innerHTML=md(x)});t.innerHTML=md(r)}
+ catch(e){t.innerHTML=md(ok?`Minggu berikutnya ${s.n} tampak lebih percaya diri dan terlibat.\n\nCatatan: tentukan indikator evaluasi yang terukur (mis. skor hafalan, durasi fokus, jumlah tugas terkumpul) dan pantau 2–4 minggu.`:`${s.n} belum banyak berubah.\n\nCatatan: kembali ke diagnosis, lalu pilih strategi yang menyasar aspek hambatan utamanya.`)}
+}
+
+/* ================= PAPAN KRITIK TEORI ================= */
+function openPapan(){
+ S.cur='papan';openPanel('Papan Kritik Teori','Tradisi pesantren dibaca dengan teori belajar',`<svg width="40" height="40" viewBox="0 0 40 40"><rect x="4" y="8" width="32" height="22" rx="2" fill="#2f5d4a" stroke="#8a5a34" stroke-width="2"/><path d="M9 15h16M9 20h22M9 25h12" stroke="#f4f1ea" stroke-width="2"/></svg>`);
+ $('pBody').innerHTML=`<p class="obs">Pesantren adalah laboratorium psikologi belajar tertua di Nusantara. Cocokkan setiap praktik dengan teori yang paling menjelaskan, lalu tulis kritik: apa kekuatan dan risikonya bagi kesehatan psikologis santri?</p>
+ <div class="match">${PAPAN.map((p,i)=>`<div class="mrow" id="pr${i}"><p>${esc(p.d)}</p><select id="ps${i}" aria-label="Teori untuk praktik ${i+1}"><option value="">— pilih teori —</option>${TEORI.map(t=>`<option>${t}</option>`).join('')}</select></div>`).join('')}</div>
+ <div class="acts"><button class="btn pri" id="bPapan">Periksa</button></div><div id="papOut"></div>
+ <div class="step" style="margin-top:12px"><h3><span class="n">✎</span>Analisis & kritik</h3><textarea id="kritik" rows="5" placeholder="Contoh: takzir efektif menghentikan perilaku sesaat, tetapi bila mempermalukan dapat…"></textarea><div class="acts"><button class="btn" id="bKritik">Minta umpan balik</button></div><div id="kritOut"></div></div>`;
+ $('bPapan').onclick=()=>{let ok=0;PAPAN.forEach((p,i)=>{const g=$('ps'+i).value===p.a;if(g)ok++;$('pr'+i).className='mrow '+(g?'ok':'bad')});
+  $('papOut').innerHTML=ok===PAPAN.length?'<div class="fb ok"><b>Semua tepat.</b> Takzir dan pujian sama-sama behavioristik (hukuman dan penguatan). Bandongan dekat dengan belajar bermakna ekspositori Ausubel, sedangkan sorogan adalah scaffolding klasik.</div>':`<div class="fb bad"><b>${ok}/${PAPAN.length} tepat.</b> Petunjuk: siapa yang aktif membangun pengetahuan? Apakah ada konsekuensi yang mengikuti perilaku? Apakah ada model yang ditiru?</div>`;
+  chime(ok===PAPAN.length);if(ok===PAPAN.length)complete('papan')};
+ $('bKritik').onclick=async()=>{const v=$('kritik').value.trim();if(v.length<40){toast('Tulis kritik beberapa kalimat dulu.');return}const t=aiBox($('kritOut'),'Umpan balik Ustadzah Rose');
+  try{const r=await aiAsk(`Nilai analisis-kritik mahasiswa tentang praktik pesantren (setoran+pujian, sorogan, bandongan, keteladanan kiai, muhasabah, takzir) dalam kacamata teori belajar dan kesehatan psikologis santri. Rubrik skor 1–4: ketepatan teori, kedalaman kritik (kekuatan & keterbatasan), sensitivitas psikologis/etika, relevansi untuk pembelajaran PAI abad ke-21. Beri skor, satu kekuatan, satu saran, satu pertanyaan pemantik. Teks: """${v.slice(0,2500)}"""`,{onText:x=>t.innerHTML=md(x)});t.innerHTML=md(r)}
+  catch(e){const k=[['teori',/behavior|kognitif|konstruktiv|bandura|zimmerman|regulasi/i],['kekuatan & kelemahan',/kekuatan|kelemahan|risiko|kelebihan|kekurangan/i],['dampak psikologis',/cemas|malu|aman|motivasi|efikasi|psikolog/i]];t.innerHTML='Mode luring, cek kelengkapan:<br>'+k.map(([n,r])=>`${r.test(v)?'✓':'○'} ${n}`).join('<br>')}};
+}
+
+/* ================= USTADZAH ROSE ================= */
+const FAQ=[[/memori|lupa|hafal|ingat/i,'Menurut model Atkinson–Shiffrin, informasi masuk lewat memori sensorik, disaring perhatian ke memori kerja yang kapasitasnya terbatas, lalu disimpan ke memori jangka panjang lewat pengulangan dan pemaknaan. Nah, Mbak/Mas, menurut Panjenengan kenapa murajaah berulang membantu hafalan? Coba buka model memori di Lab AR.'],[/bandura|meniru|teladan|sosial/i,'Bandura menyebut empat proses belajar observasional: atensi, retensi, reproduksi, motivasi. Keteladanan kiai bekerja persis begitu. Pertanyaan saya: proses mana yang paling sering gagal bila guru hanya menyuruh tanpa mencontohkan?'],[/regulasi|zimmerman|disiplin|waktu/i,'Zimmerman membagi regulasi diri menjadi tiga fase: perencanaan, pelaksanaan dengan pemantauan, dan refleksi. Muhasabah santri adalah versi pesantrennya. Untuk Dimas, fase mana yang paling perlu dilatih dulu?'],[/hukum|takzir|marah/i,'Hukuman mungkin menghentikan perilaku sesaat, tetapi bila mempermalukan bisa menurunkan efikasi diri dan memicu kecemasan. Kita ngemong, bukan menakut-nakuti. Alternatif apa yang tetap tegas tetapi menjaga martabat anak?'],[/etika|privasi|data|ai/i,'Prinsip etika intervensi digital: jaga privasi data anak, minta persetujuan wali, jangan memberi label klinis, dan pastikan teknologi tidak menambah kesenjangan. Data siswa sungguhan tidak dimasukkan ke layanan AI publik.'],[/diagnos|langkah/i,'Langkah diagnosis kesulitan belajar: identifikasi siswa, lokalisasi letak kesulitan, telusuri faktor penyebab, buat prognosis, rancang intervensi, lalu evaluasi. Data dari minimal tiga sumber (observasi, nilai, wawancara) membuat diagnosis lebih kuat.']];
+function openRose(){
+ S.cur='rose';openPanel('Ustadzah Rose','Mentor AI · guru BK senior',ROSE_AV);
+ if(!S.rose.length)S.rose.push({role:'assistant',content:'Assalamu‘alaikum, Mbak/Mas calon guru. Saya Ustadzah Rose. Di kelas ini kita belajar ngemong: mengamati dulu, memahami, baru mendampingi. Mau diskusi kasus siapa, atau teori yang mana?'});
+ renderRose();
+}
+function renderRose(){
+ $('pBody').innerHTML=`<div class="chat" id="rc" style="max-height:none">${S.rose.map(m=>`<div class="bubble ${m.role==='user'?'me':'them'}">${md(m.content)}</div>`).join('')}</div>
+ <div class="chips">${['Bagaimana langkah diagnosis kesulitan belajar?','Apakah takzir sesuai prinsip ramah psikologis?','Jelaskan regulasi diri Zimmerman','Etika memakai AI untuk data siswa'].map(q=>`<button>${q}</button>`).join('')}</div>
+ <div class="row"><input id="roseIn" placeholder="Tanya Ustadzah Rose…" aria-label="Pertanyaan untuk Ustadzah Rose"><button class="btn pri" id="roseSend">Kirim</button></div>
+ <div class="acts"><button class="btn" id="roseSay">🔊 Dengar jawaban terakhir</button></div>`;
+ $('pBody').querySelectorAll('.chips button').forEach(b=>b.onclick=()=>askRose(b.textContent));
+ $('roseSend').onclick=()=>askRose();$('roseIn').onkeydown=e=>{if(e.key==='Enter')askRose()};
+ $('roseSay').onclick=()=>{const l=[...S.rose].reverse().find(m=>m.role==='assistant');l&&speak(l.content,'airy')};
+ $('pBody').scrollTop=1e6;
+}
+async function askRose(q){
+ q=(q||$('roseIn').value).trim();if(!q)return;S.rose.push({role:'user',content:q});S.rose.push({role:'assistant',content:'…'});renderRose();
+ const bub=[...document.querySelectorAll('#rc .bubble.them')].pop();
+ const ctx=`(Progres mahasiswa: ${Object.keys(S.done).join(', ')||'belum ada'} selesai.)`;
+ let hist=S.rose.slice(0,-1).slice(-10);while(hist.length&&hist[0].role!=='user')hist.shift();
+ hist=hist.map((m,i)=>i===hist.length-1?{...m,content:m.content+' '+ctx}:m);
+ try{const r=await aiAsk(null,{history:hist,onText:x=>{bub.innerHTML=md(x);$('pBody').scrollTop=1e6}});S.rose[S.rose.length-1].content=r}
+ catch(e){const f=FAQ.find(f=>f[0].test(q));S.rose[S.rose.length-1].content=(f?f[1]:'Saya sedang mode luring, Nak. Coba tanyakan tentang memori, Bandura, regulasi diri, hukuman, etika data, atau langkah diagnosis.')+'\n\n(mode luring)'}
+ renderRose();
+}
+
+/* ================= 3D ================= */
+const scene=$('scene');
+let moved=false,pd=null;
+window.addEventListener('pointerdown',e=>{pd=[e.clientX,e.clientY];moved=false});
+window.addEventListener('pointermove',e=>{if(pd&&Math.hypot(e.clientX-pd[0],e.clientY-pd[1])>8)moved=true});
+function el(tag,attrs,parent){const e=document.createElement(tag);for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||$('vrWorld')).appendChild(e);return e}
+AFRAME.registerComponent('label',{schema:{value:{default:''},color:{default:'#ffffff'},size:{default:.1},bg:{default:'rgba(10,28,22,.78)'},font:{default:'Lexend'}},
+ init(){this.draw();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>this.draw())},update(){this.draw()},
+ draw(){const d=this.data,lines=String(d.value).split('\n'),px=96,pad=px*.35,cv=document.createElement('canvas'),x=cv.getContext('2d');const font=`600 ${px}px ${d.font}, system-ui, sans-serif`;x.font=font;const w=Math.ceil(Math.max(...lines.map(l=>x.measureText(l).width))+pad*2),h=Math.ceil(lines.length*px*1.25+pad*1.2);cv.width=w;cv.height=h;x.font=font;if(d.bg&&d.bg!=='none'){x.fillStyle=d.bg;x.beginPath();x.roundRect?x.roundRect(0,0,w,h,px*.35):x.rect(0,0,w,h);x.fill()}x.fillStyle=d.color;x.textAlign='center';x.textBaseline='middle';lines.forEach((l,i)=>x.fillText(l,w/2,pad*.6+px*1.25*(i+.5)));
+  const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;const H=d.size*lines.length*1.25+d.size*.6,W=H*w/h;
+  const old=this.el.getObject3D('mesh');if(old){old.geometry.dispose();old.material.map&&old.material.map.dispose();old.material.dispose()}
+  this.el.setObject3D('mesh',new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false})))}});
+const MK={};
+function student(s){
+ const [x,z]=s.pos,g=el('a-entity',{position:`${x} 0 ${z}`,class:'clickable'});
+ el('a-box',{width:1.1,height:.06,depth:.6,position:'0 .76 -.45',color:'#9a6a3e'},g);
+ [[-.5,-.7],[.5,-.7],[-.5,-.2],[.5,-.2]].forEach(([a,b])=>el('a-cylinder',{radius:.025,height:.76,position:`${a} .38 ${b}`,color:'#5b3d24'},g));
+ el('a-box',{width:.46,height:.05,depth:.44,position:'0 .45 0',color:'#7a5232'},g);el('a-box',{width:.46,height:.5,depth:.05,position:'0 .72 .22',color:'#7a5232'},g);
+ el('a-box',{width:.3,height:.02,depth:.22,position:'.2 .8 -.45',color:'#f5efe3'},g);
+ const body=el('a-entity',{},g);
+ el('a-cylinder',{radius:.17,height:.52,position:'0 .76 0',color:'#f4f1ea'},body);
+ el('a-box',{width:.32,height:.14,depth:.4,position:'0 .52 -.12',color:s.fem?s.col:'#3b5a4c'},body);
+ const head=el('a-entity',{position:'0 1.17 0'},body);
+ el('a-sphere',{radius:.14,color:'#e2b48e'},head);
+ if(s.fem){el('a-sphere',{radius:.165,position:'0 .02 .01','theta-length':115,color:s.col},head);el('a-cone',{'radius-bottom':.22,'radius-top':.1,height:.26,position:'0 -.17 0',color:s.col},head)}
+ else el('a-cylinder',{radius:.13,height:.1,position:'0 .12 0',color:'#151515'},head);
+ el('a-sphere',{radius:.018,position:'-.05 .02 -.13',color:'#1a1a1a'},head);el('a-sphere',{radius:.018,position:'.05 .02 -.13',color:'#1a1a1a'},head);
+ // perilaku khas
+ if(s.id==='rafi')head.setAttribute('animation','property:rotation;from:0 0 0;to:0 -55 0;dir:alternate;loop:true;dur:1300;easing:easeInOutSine;delay:600');
+ if(s.id==='nisa'){head.setAttribute('rotation','18 0 0');head.setAttribute('animation','property:position;from:0 1.17 0;to:.008 1.165 0;dir:alternate;loop:true;dur:90')}
+ if(s.id==='bayu'){const bk=el('a-box',{width:.26,height:.34,depth:.02,position:'0 1.12 -.24',rotation:'15 0 0',color:'#2f5d4a'},body);head.setAttribute('rotation','10 0 8')}
+ if(s.id==='laila'){const hand=el('a-sphere',{radius:.04,position:'.15 .82 -.4',color:'#e2b48e'},g);hand.setAttribute('animation','property:position;from:.12 .82 -.42;to:.26 .82 -.5;dir:alternate;loop:true;dur:450');head.setAttribute('rotation','8 0 -12')}
+ if(s.id==='dimas')head.setAttribute('animation','property:rotation;from:5 0 0;to:48 0 6;dir:alternate;loop:true;dur:2600;easing:easeInOutQuad');
+ if(s.id==='ayu')head.setAttribute('animation','property:rotation;from:0 0 0;to:0 40 0;dir:alternate;loop:true;dur:2200;easing:easeInOutSine;delay:300');
+ const mk=el('a-octahedron',{radius:.09,position:'0 1.62 0',material:`color:${s.col};emissive:${s.col};emissiveIntensity:.6`,animation:'property:rotation;to:0 360 0;loop:true;dur:4000;easing:linear'},g);
+ el('a-entity',{label:{value:s.n,color:'#ffffff',size:.07},position:'0 1.8 0'},g);
+ g.addEventListener('click',()=>{if(S.mode==='vr'&&!moved)openStudent(s.id)});
+ g.addEventListener('mouseenter',()=>mk.setAttribute('scale','1.5 1.5 1.5'));g.addEventListener('mouseleave',()=>mk.setAttribute('scale','1 1 1'));
+ MK[s.id]={g,mk,x,z};
+}
+function markStudent(id){const m=MK[id]?.mk;if(m)m.setAttribute('material','color:#62d18e;emissive:#62d18e;emissiveIntensity:.8')}
+function buildRoom(){
+ const W=9,D=10,H=3.4;
+ el('a-plane',{width:W,height:D,rotation:'-90 0 0',color:'#c9b49a','hide-on-enter-ar':''});
+ for(let i=-4;i<=4;i++)el('a-plane',{width:.02,height:D,rotation:'-90 0 0',position:`${i} .002 0`,color:'#b39c80'});
+ el('a-plane',{width:W,height:D,rotation:'90 0 0',position:`0 ${H} 0`,color:'#f3efe6'});
+ el('a-box',{width:W,height:H,depth:.1,position:`0 ${H/2} ${-D/2}`,color:'#e9efe6'});
+ el('a-box',{width:W,height:H,depth:.1,position:`0 ${H/2} ${D/2}`,color:'#e9efe6'});
+ el('a-box',{width:.1,height:H,depth:D,position:`${W/2} ${H/2} 0`,color:'#e9efe6'});
+ // dinding kiri berjendela
+ const L=-W/2;el('a-box',{width:.1,height:.9,depth:D,position:`${L} .45 0`,color:'#e9efe6'});el('a-box',{width:.1,height:.6,depth:D,position:`${L} ${H-.3} 0`,color:'#e9efe6'});
+ for(let i=0;i<5;i++){const z=-4+i*2;el('a-box',{width:.12,height:1.9,depth:.16,position:`${L} 1.85 ${z-1}`,color:'#8a5a34'});}
+ el('a-box',{width:.12,height:1.9,depth:.16,position:`${L} 1.85 5`,color:'#8a5a34'});
+ el('a-box',{width:.14,height:.12,depth:D,position:`${L} 2.8 0`,color:'#8a5a34'});el('a-box',{width:.14,height:.12,depth:D,position:`${L} .9 0`,color:'#8a5a34'});
+ // pemandangan luar: halaman, pohon, masjid & gapura Giri
+ el('a-plane',{width:40,height:40,rotation:'-90 0 0',position:'-24 -.01 0',color:'#86b46a'});
+ for(let i=0;i<6;i++){const t=el('a-entity',{position:`${-8-Math.random()*6} 0 ${-8+i*3.2}`});el('a-cylinder',{radius:.15,height:2,position:'0 1 0',color:'#6b4a30'},t);el('a-sphere',{radius:1.1,position:'0 2.6 0',color:i%2?'#4f8a4a':'#5f9a50'},t)}
+ const mq=el('a-entity',{position:'-20 0 -2'});el('a-box',{width:6,height:3,depth:5,position:'0 1.5 0',color:'#f0ece0'},mq);el('a-cone',{'radius-bottom':3.8,'radius-top':.3,height:2,'segments-radial':4,position:'0 4 0',rotation:'0 45 0',color:'#2f5d4a'},mq);el('a-cone',{'radius-bottom':2,'radius-top':.1,height:1.3,'segments-radial':4,position:'0 5.6 0',rotation:'0 45 0',color:'#2f5d4a'},mq);
+ const gp=el('a-entity',{position:'-16 0 5',rotation:'0 90 0'});[-1,1].forEach(sd=>{for(let t=0;t<4;t++)el('a-box',{width:1.4-t*.25,height:.8,depth:1-t*.12,position:`${sd*1.3} ${.4+t*.8} 0`,color:t%2?'#a54a29':'#c0573a'},gp)});
+ // papan tulis & kaligrafi
+ const bd=el('a-entity',{position:`0 0 ${-D/2+.08}`,class:'clickable'});
+ el('a-box',{width:4.2,height:1.5,depth:.05,position:'0 1.75 0',color:'#2f5d4a'},bd);el('a-box',{width:4.4,height:1.7,depth:.03,position:'0 1.75 -.02',color:'#8a5a34'},bd);
+ el('a-entity',{label:{value:'Fikih: Tata Cara Wudu\nHafalan QS. al-‘Asr',color:'#f4f1ea',size:.13,bg:'none'},position:'-.7 1.95 .04'},bd);
+ el('a-entity',{label:{value:'PAPAN KRITIK TEORI  ▸ klik',color:'#ffe9a8',size:.08,bg:'rgba(0,0,0,.25)'},position:'-.7 1.25 .04'},bd);
+ el('a-entity',{label:{value:'وَالْعَصْرِ',color:'#ffffff',size:.2,bg:'none',font:'Amiri'},position:'1.3 1.8 .04'},bd);
+ el('a-box',{width:1.6,height:.06,depth:.12,position:'0 .98 .05',color:'#8a5a34'},bd);
+ bd.addEventListener('click',()=>{if(S.mode==='vr'&&!moved)openPapan()});
+ el('a-entity',{label:{value:'يَسِّرُوا وَلَا تُعَسِّرُوا',color:'#2f5d4a',size:.16,bg:'rgba(255,250,235,.95)',font:'Amiri'},position:`3.2 2.6 ${-D/2+.08}`});
+ // meja guru & Ustadzah Rose
+ el('a-box',{width:1.5,height:.78,depth:.7,position:'2.4 .39 -3.7',color:'#8a5a34'});
+ const rose=el('a-entity',{position:'-2.6 0 -3.9',class:'clickable'});
+ el('a-cylinder',{radius:.24,height:1.1,position:'0 .55 0',color:'#d97a9a'},rose);el('a-cone',{'radius-bottom':.32,'radius-top':.2,height:.5,position:'0 1.25 0',color:'#d97a9a'},rose);
+ el('a-sphere',{radius:.15,position:'0 1.58 0',color:'#e2b48e'},rose);el('a-sphere',{radius:.18,position:'0 1.61 -.02','theta-length':112,color:'#c4637f'},rose);
+ el('a-sphere',{radius:.04,position:'.12 1.72 .05',color:'#f6c1d2'},rose);
+ el('a-entity',{label:{value:'Ustadzah Rose · mentor AI',color:'#ffffff',size:.075,bg:'rgba(196,99,127,.9)'},position:'0 2.05 0'},rose);
+ rose.setAttribute('animation','property:rotation;from:0 15 0;to:0 -15 0;dir:alternate;loop:true;dur:4000;easing:easeInOutSine');
+ rose.addEventListener('click',()=>{if(S.mode==='vr'&&!moved)openRose()});
+ // kipas angin & lampu
+ const fan=el('a-entity',{position:`0 ${H-.35} .2`,animation:'property:rotation;to:0 360 0;loop:true;dur:1400;easing:linear'});
+ el('a-cylinder',{radius:.08,height:.12,color:'#ddd'},fan);for(let i=0;i<3;i++)el('a-box',{width:.9,height:.015,depth:.14,position:`${Math.cos(i*2.094)*.45} 0 ${Math.sin(i*2.094)*.45}`,rotation:`0 ${-i*120} 0`,color:'#f0f0f0'},fan);
+ el('a-cylinder',{radius:.015,height:.3,position:`0 ${H-.15} .2`,color:'#ccc'});
+ [[-2,-1],[2,2]].forEach(([x,z])=>el('a-box',{width:1.2,height:.04,depth:.18,position:`${x} ${H-.02} ${z}`,material:'color:#fff;emissive:#fff;emissiveIntensity:.8'}));
+ el('a-entity',{light:'type:point;color:#fff6e6;intensity:.7;distance:12'},null).setAttribute('position','0 3 0');
+ // rak & tas
+ el('a-box',{width:.4,height:1.6,depth:2.2,position:`${W/2-.25} .8 2.5`,color:'#7a5232'});
+ for(let i=0;i<4;i++)el('a-box',{width:.3,height:.25,depth:.18,position:`${W/2-.25} ${.35+i*.38} ${1.8+(i%2)*.6}`,color:['#c0573a','#2f5d4a','#e0a54f','#6aa9d8'][i]});
+ ST.forEach(student);Object.keys(S.done).forEach(markStudent);
+}
+function teleport(id){const m=MK[id];if(!m||S.mode!=='vr')return;const rig=$('rig');rig.setAttribute('animation__tp',`property:position;to:${m.x+(innerWidth>700?.55:0)} 0 ${m.z-2};dur:800;easing:easeInOutCubic`);rig.setAttribute('rotation','0 180 0');const lc=$('cam').components['look-controls'];if(lc){lc.yawObject.rotation.y=innerWidth>700?-.22:0;lc.pitchObject.rotation.x=innerWidth>700?-.18:-.62}}
+function resetView(){const rig=$('rig');rig.removeAttribute('animation__tp');rig.setAttribute('position','4.2 0 4.6');rig.setAttribute('rotation','0 38 0');const lc=$('cam').components['look-controls'];if(lc){lc.yawObject.rotation.y=0;lc.pitchObject.rotation.x=0}}
+
+/* ================= AR LAB ================= */
+let arObj='memori',arRot=0,arScale=innerWidth<700?.7:1.25,stream=null;
+const ARINFO={
+ memori:[['Memori sensorik','Menangkap rangsangan sangat singkat. Contoh: suara Ustaz membaca QS. al-‘Asr.','#6aa9d8'],['Perhatian','Menyaring informasi. Tanpa atensi, informasi hilang. Kasus Rafi.','#e0a54f'],['Memori kerja','Mengolah informasi; kapasitasnya terbatas (± beberapa unsur). Kecemasan ikut menyita ruangnya. Kasus Nisa.','#7fd3a8'],['Pengulangan & pemaknaan','Murajaah dan menghubungkan makna memindahkan ke memori jangka panjang.','#d98fb4'],['Memori jangka panjang','Penyimpanan relatif permanen; dipanggil kembali saat setoran atau praktik.','#a98bd6'],['Lupa','Informasi yang tidak diperhatikan atau diulang akan memudar.','#ff7d69']],
+ bandura:[['Atensi','Santri memperhatikan model (kiai/guru). Model yang dihormati lebih diperhatikan.','#6aa9d8'],['Retensi','Perilaku model disimpan dalam ingatan, misalnya urutan wudu yang dicontohkan.','#7fd3a8'],['Reproduksi','Santri mempraktikkan sendiri; perlu kemampuan motorik dan umpan balik.','#e0a54f'],['Motivasi','Penguatan langsung, vikarius, atau internal mendorong perilaku diulang.','#d98fb4']],
+ zimmerman:[['Perencanaan','Menetapkan target dan strategi; meyakini diri mampu (efikasi diri). Contoh: target murajaah 1 surat/hari.','#6aa9d8'],['Pelaksanaan & pemantauan','Menjalankan strategi, memantau diri, mengelola waktu dan godaan gawai.','#e0a54f'],['Refleksi','Menilai hasil, menjelaskan sebabnya, lalu menyesuaikan rencana. Seperti muhasabah malam.','#7fd3a8']]};
+function arBuild(){
+ const w=$('arWorld');while(w.firstChild)w.removeChild(w.firstChild);
+ el('a-cylinder',{radius:.85,height:.03,position:'0 -.02 0',material:'color:#10261f;opacity:.55;transparent:true'},w);
+ el('a-ring',{'radius-inner':.82,'radius-outer':.86,rotation:'-90 0 0',material:'color:#7fd3a8;shader:flat'},w);
+ const info=ARINFO[arObj];
+ const tap=(g,i)=>{g.classList.add('clickable');g.addEventListener('click',()=>{const [n,d,c]=info[i];$('arInfo').innerHTML=`<b style="color:${c}">${n}</b><span>${d}</span>`;chime(true)})};
+ if(arObj==='memori'){
+  const xs=[-.6,-.2,.2,.6];
+  [[0,'Sensorik',.12],[2,'Memori kerja',.2],[4,'Jangka panjang',.3]].forEach(([i,n,h],j)=>{const g=el('a-entity',{position:`${[-.55,0,.55][j]} 0 0`},w);el('a-box',{width:.26,height:h,depth:.26,position:`0 ${h/2} 0`,material:`color:${info[i][2]};opacity:.9;transparent:true`},g);el('a-entity',{label:{value:n,size:.04},position:`0 ${h+.07} 0`},g);tap(g,i)});
+  const att=el('a-entity',{position:'-.27 .08 0'},w);el('a-cone',{'radius-bottom':.07,'radius-top':.025,height:.14,rotation:'0 0 -90',color:info[1][2]},att);el('a-entity',{label:{value:'Perhatian',size:.028},position:'0 .11 .12'},att);tap(att,1);
+  const rep=el('a-entity',{position:'.27 .12 0'},w);el('a-torus',{radius:.07,'radius-tubular':.012,color:info[3][2],animation:'property:rotation;to:0 0 360;loop:true;dur:2500;easing:linear'},rep);el('a-entity',{label:{value:'Murajaah',size:.028},position:'0 -.05 .12'},rep);tap(rep,3);
+  for(let i=0;i<8;i++){el('a-sphere',{radius:.016,color:'#ffd27a',animation:`property:position;from:-.6 .05 -.2;to:.55 .2 -.2;loop:true;dur:3000;delay:${i*370};easing:linear`},w)}
+  const lupa=el('a-entity',{position:'-.27 0 .45'},w);el('a-cylinder',{radius:.06,height:.02,position:'0 .01 0',color:'#ff7d69'},lupa);for(let i=0;i<4;i++)el('a-sphere',{radius:.014,color:'#ff7d69',animation:`property:position;from:0 .12 -.3;to:${(i-1.5)*.05} .02 0;loop:true;dur:1800;delay:${i*420}`},lupa);el('a-entity',{label:{value:'Lupa',size:.03,color:'#ffb3a6'},position:'0 .08 .05'},lupa);tap(lupa,5);
+ }
+ if(arObj==='bandura'){
+  const model=el('a-entity',{position:'0 0 -.15'},w);el('a-cylinder',{radius:.07,height:.3,position:'0 .15 0',color:'#d97a9a'},model);el('a-sphere',{radius:.06,position:'0 .36 0',color:'#e2b48e'},model);el('a-entity',{label:{value:'Model (guru/kiai)',size:.03},position:'0 .48 0'},model);
+  info.forEach((it,i)=>{const t=i/4*Math.PI*2+Math.PI/4,g=el('a-entity',{position:`${Math.sin(t)*.62} 0 ${Math.cos(t)*.5}`},w);el('a-cylinder',{radius:.09,height:.1+i*.06,position:`0 ${(.1+i*.06)/2} 0`,color:it[2]},g);el('a-entity',{label:{value:`${i+1}. ${it[0]}`,size:.032},position:`0 ${.22+i*.06} 0`},g);tap(g,i)});
+  el('a-torus',{radius:.5,'radius-tubular':.006,rotation:'90 0 0',position:'0 .02 0',color:'#7fd3a8',scale:'1.1 .9 1'},w);
+ }
+ if(arObj==='zimmerman'){
+  info.forEach((it,i)=>{const t=i/3*Math.PI*2,g=el('a-entity',{position:`${Math.sin(t)*.45} 0 ${Math.cos(t)*.45}`},w);el('a-box',{width:.24,height:.18,depth:.24,position:'0 .09 0',color:it[2]},g);el('a-entity',{label:{value:it[0],size:.035},position:'0 .26 0'},g);tap(g,i)});
+  el('a-torus',{radius:.45,'radius-tubular':.01,rotation:'90 0 0',position:'0 .05 0',color:'#f4f1ea'},w);
+  const orb=el('a-entity',{animation:'property:rotation;to:0 360 0;loop:true;dur:6000;easing:linear'},w);el('a-sphere',{radius:.03,position:'0 .05 .45',material:'color:#ffd27a;emissive:#ffd27a'},orb);
+ }
+ $('arInfo').innerHTML='<span>Ketuk bagian model untuk membaca penjelasannya.</span>';
+ applyAR();
+}
+function applyAR(){$('arWorld').setAttribute('rotation',`0 ${arRot} 0`);$('arWorld').setAttribute('scale',`${arScale} ${arScale} ${arScale}`)}
+$('arSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;arObj=b.dataset.o;[...$('arSeg').children].forEach(x=>x.classList.toggle('on',x===b));arBuild()});
+async function enterAR(){
+ closePanel();S.mode='ar';document.body.classList.add('ar');resetView();
+ $('vrWorld').setAttribute('visible',false);$('sky').setAttribute('visible',false);$('arWorld').setAttribute('visible',true);
+ $('cam').setAttribute('look-controls','enabled',false);$('cam').setAttribute('wasd-controls','enabled',false);
+ $('rig').setAttribute('position','0 0 0');$('rig').setAttribute('rotation','0 0 0');$('cam').object3D.rotation.set(-.35,0,0);$('arWorld').setAttribute('position','0 1.05 -1.6');
+ arBuild();['arVideo','arPhoto','arPlain'].forEach(i=>$(i).classList.remove('on'));
+ try{if(!navigator.mediaDevices?.getUserMedia)throw 0;stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});$('arVideo').srcObject=stream;$('arVideo').classList.add('on');toast('Kamera aktif. Model teori tampil di ruangan Anda.')}
+ catch(e){$('arPlain').classList.add('on');toast('Kamera langsung tidak diizinkan di tampilan ini. Ketuk <b>Foto latar</b> untuk memotret meja Anda, atau pakai tombol AR (WebXR) bila tersedia.',5000)}
+}
+function exitAR(){S.mode='vr';document.body.classList.remove('ar');if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+ $('vrWorld').setAttribute('visible',true);$('sky').setAttribute('visible',true);$('arWorld').setAttribute('visible',false);
+ $('cam').setAttribute('look-controls','enabled',true);$('cam').setAttribute('wasd-controls','enabled',true);$('cam').object3D.rotation.set(0,0,0);resetView()}
+$('arExit').onclick=exitAR;$('arPhotoBtn').onclick=()=>$('arFile').click();
+$('arFile').onchange=e=>{const f=e.target.files[0];if(!f)return;$('arPhoto').src=URL.createObjectURL(f);['arVideo','arPlain'].forEach(i=>$(i).classList.remove('on'));$('arPhoto').classList.add('on');toast('Foto dipasang sebagai latar AR.')};
+let drag=null;
+window.addEventListener('pointerdown',e=>{if(S.mode==='ar'&&e.target.tagName==='CANVAS')drag={x:e.clientX,r:arRot}});
+window.addEventListener('pointermove',e=>{if(drag){arRot=drag.r+(e.clientX-drag.x)*.5;applyAR()}});
+window.addEventListener('pointerup',()=>drag=null);
+window.addEventListener('wheel',e=>{if(S.mode==='ar'){arScale=Math.min(2.5,Math.max(.4,arScale-e.deltaY*.001));applyAR()}},{passive:true});
+let pinch=null;window.addEventListener('touchmove',e=>{if(S.mode!=='ar'||e.touches.length!==2)return;const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pinch){arScale=Math.min(2.5,Math.max(.4,arScale*d/pinch));applyAR()}pinch=d},{passive:true});window.addEventListener('touchend',()=>pinch=null);
+scene.addEventListener('enter-vr',()=>{if(scene.is('ar-mode')){$('vrWorld').setAttribute('visible',false);$('arWorld').setAttribute('visible',true);$('arWorld').setAttribute('position','0 .9 -1.2');arBuild()}else{$('gaze').setAttribute('visible',true);$('gaze').setAttribute('raycaster','enabled',true)}});
+scene.addEventListener('exit-vr',()=>{$('gaze').setAttribute('visible',false);$('gaze').setAttribute('raycaster','enabled',false);if(S.mode!=='ar'){$('vrWorld').setAttribute('visible',true);$('arWorld').setAttribute('visible',false)}});
+
+/* ================= START ================= */
+const start=()=>{buildRoom();renderBadges();renderDock()};
+if(scene.hasLoaded)start();else scene.addEventListener('loaded',start);
+$('goVR').onclick=()=>{$('intro').classList.remove('open');toast('Klik siswa, papan tulis, atau Ustadzah Rose untuk memulai.')};
+$('goAR').onclick=()=>{$('intro').classList.remove('open');enterAR()};
+$('goRose').onclick=()=>{$('intro').classList.remove('open');openRose()};
+$('helpBtn').onclick=()=>{if(S.mode==='ar')exitAR();$('intro').classList.add('open')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('intro').classList.contains('open'))$('intro').classList.remove('open');else closePanel()}});
+initAI();
+}
+</script>
+</body>
+</html>
